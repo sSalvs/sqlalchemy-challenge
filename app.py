@@ -46,19 +46,16 @@ def precipitation():
     #Create our session (link) from Python to the DB
     session = Session(engine)
     last_date = session.query(func.max(Measurement.date)).first()
-    
-    session.close()
-
+        
     year_ago = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     twelve_months_precip = session.query(Measurement.date, Measurement.prcp).filter(Measurement.date >= year_ago).all()
+
+    session.close()
 
     # create a dictionary with date as key, precip as value 
     precip_12 = {date: precip for date, precip in twelve_months_precip}
 
-
-
     return jsonify(precip_12)
-
 
 
 
