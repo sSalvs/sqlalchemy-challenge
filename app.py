@@ -39,6 +39,20 @@ app = Flask(__name__)
 # Flask Routes
 #################################################
 
+@app.route("/")
+def welcome():
+    return (
+        f"Welcome to Climate App!<br/>"
+        f"Available Routes:<br/>"
+        f"/api/v1.0/precipitation<br/>"
+        f"/api/v1.0/stations<br/>"
+        f"/api/v1.0/tobs <br/>"
+        f"/api/v1.0/<start> <br/>"
+        f"/api/v1.0/<start>/<end> "
+    )
+
+
+
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     """return precipitation date and precipitation scores"""
@@ -66,7 +80,7 @@ def stations():
 
     """Return all Stations"""
 
-    results = session.query(Measurement.station, func.count(Measurement.station)).group_by(Measurement.station).order_by(func.count(Measurement.station).desc()).all()
+    results = session.query(Measurement.station).group_by(Measurement.station).all()
 
     session.close()
 
@@ -83,34 +97,46 @@ def tobs():
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
-    """Return dates and temparature observations for most active station"""
-    
+    """Return dates and temparature observations for most active station for the last year of data"""
+    year_ago = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     twelve_months_obvs = session.query(Measurement.date, Measurement.tobs).filter((Measurement.date >= year_ago) & (Measurement.station == "USC00519281")).all()
 
     session.close()
 
-    tobs_obs = list(np.ravel(twelve_months_obvs ))
+    tobs_obs = list(np.ravel(twelve_months_obvs))
 
     return jsonify(tobs_obs)
 
 
 @app.route("/api/v1.0/<start>")
+def start_date():
+        # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return JSON list of the minimum temperature, the average temperature, and the max temperature for a given start date"""
+    sel = [Measurement.date, 
+       func.min(Measurement.tobs), 
+       func.max(Measurement.tobs), 
+       func.avg(Measurement.tobs)]
+    recorded_temps = session.query(*sel).filter(Measurement.date >= <start>).all()
+# print the results
+
+
+    session.close()
+
+    for temp in recorded_temps:
+        print()
+
+    start_retult = list(np.ravel(recorded_temps))
+
+
+    return jsonify(start_retult)
 
 
 
-@app.route("/api/v1.0/<start>/<end>")
+# @app.route("/api/v1.0/<start>/<end>")
 
 
-def welcome():
-    return (
-        f"Welcome to Climate Change!<br/>"
-        f"Available Routes:<br/>"
-        f"/api/v1.0/precipitation<br/>"
-        f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/tobs <br/>"
-        f"/api/v1.0/<start> <br/>"
-        f"/api/v1.0/<start>/<end> "
-    )
 
 
 if __name__ == "__main__":
