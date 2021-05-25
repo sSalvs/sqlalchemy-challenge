@@ -17,27 +17,18 @@ Base = automap_base()
 Base.prepare(engine, reflect=True)
 
 # We can view all of the classes that automap found
-
 Base.classes.keys()
 
 # Save references to each table
 Measurement = Base.classes.measurement
-
 Station = Base.classes.station
-
-# Create our session (link) from Python to the DB
-# session = Session(engine)
-
 
 #################################################
 # Flask Routes 
 #################################################
 app = Flask(__name__)
 
-
-#################################################
-# Flask Routes
-#################################################
+# create welcome route 
 
 @app.route("/")
 def welcome():
@@ -48,10 +39,10 @@ def welcome():
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs <br/>"
         f"/api/v1.0/<start> <br/>"
-        f"/api/v1.0/<start>/<end> "
+
     )
 
-
+# create precipitation route 
 
 @app.route("/api/v1.0/precipitation")
 def precipitation():
@@ -59,19 +50,30 @@ def precipitation():
     # Calculate the date 1 year ago from the last data point in the database
     #Create our session (link) from Python to the DB
     session = Session(engine)
-    last_date = session.query(func.max(Measurement.date)).first()
-        
+
+    # Use query from notebook. Get the last date in database, then calc a year before 
+    last_date = session.query(func.max(Measurement.date)).first() 
     year_ago = dt.date(2017, 8, 23) - dt.timedelta(days=365)
+    # filter to one year ago 
     twelve_months_precip = session.query(Measurement.date, Measurement.prcp).filter(Measurement.date >= year_ago).all()
 
     session.close()
 
-    # create a dictionary with date as key, precip as value 
-    precip_12 = {date: precip for date, precip in twelve_months_precip}
+    # create a list for results to jsonify 
 
-    return jsonify(precip_12)
+    list_data = []
+    for months in twelve_months_precip:
+        data = {}
+        data["date"] = months[0]
+        data["prcp"] = months[1]
+        list_data.append(data)
+
+    #  jsonify the results 
+
+    return jsonify(list_data)
 
 
+# create stations route 
 
 @app.route("/api/v1.0/stations")
 def stations():
@@ -92,12 +94,14 @@ def stations():
 
 
 
+# create tobs route 
+
 @app.route("/api/v1.0/tobs")
 def tobs():
     # Create our session (link) from Python to the DB
     session = Session(engine)
-
     """Return dates and temparature observations for most active station for the last year of data"""
+    # create a query to find temparature observations for most active station for the last year of data
     year_ago = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     twelve_months_obvs = session.query(Measurement.date, Measurement.tobs).filter((Measurement.date >= year_ago) & (Measurement.station == "USC00519281")).all()
 
@@ -108,34 +112,33 @@ def tobs():
     return jsonify(tobs_obs)
 
 
+
+# create start date route 
+
 @app.route("/api/v1.0/<start>")
-def start_date():
-        # Create our session (link) from Python to the DB
+def start_date(start):
+    # Create our session (link) from Python to the DB
     session = Session(engine)
-
     """Return JSON list of the minimum temperature, the average temperature, and the max temperature for a given start date"""
-    sel = [Measurement.date, 
-       func.min(Measurement.tobs), 
-       func.max(Measurement.tobs), 
-       func.avg(Measurement.tobs)]
-    recorded_temps = session.query(*sel).filter(Measurement.date >= <start>).all()
-# print the results
 
+# query the min, max and average tobs 
+
+    recorded_temps = session.query(func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs).filter(Measurement.date >= start)).all() 
 
     session.close()
 
+#   create a list for results 
+
+    temps_list = []
     for temp in recorded_temps:
-        print()
-
-    start_retult = list(np.ravel(recorded_temps))
-
-
-    return jsonify(start_retult)
-
+        calcs = {}
+        calcs["min"] = temp[0]
+        calcs["max"] = temp[1]
+        calcs["avg"] = temp[2]
+        temps_list.append(calcs)
 
 
-# @app.route("/api/v1.0/<start>/<end>")
-
+    return jsonify(temps_list)
 
 
 
